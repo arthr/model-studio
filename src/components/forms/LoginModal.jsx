@@ -25,7 +25,7 @@ function LoginModal({ isOpen, onClose }) {
         try {
             await login({ username, password });
             onClose();
-            navigate('/editor');
+            navigate('/studio');
         } catch (err) {
             setError('Credenciais inválidas. Tente novamente.', err.message);
         } finally {

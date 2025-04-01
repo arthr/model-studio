@@ -1,18 +1,15 @@
-import { BrowserRouter } from 'react-router-dom';
-import RoutesConfig from './routes/RoutesConfig';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { LayoutProvider } from './contexts/LayoutContext'
 import { ThemeProvider as FlowbiteThemeProvider } from 'flowbite-react';
+
+import AppRoutes from './routes/AppRoutes';
 
 function App() {
   return (
-    <BrowserRouter>
-      <FlowbiteThemeProvider>
-        <AuthProvider>
-          <RoutesConfig />
-        </AuthProvider>
-      </FlowbiteThemeProvider>
-    </BrowserRouter>
+    <FlowbiteThemeProvider>
+      <LayoutProvider>
+        <AppRoutes />
+      </LayoutProvider>
+    </FlowbiteThemeProvider>
   );
 }
 

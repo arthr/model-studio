@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Button } from 'flowbite-react';
-import LoginModal from '../components/forms/LoginModal';
+import LoginModal from '../../components/forms/LoginModal';
 
 function Home() {
     const [showLogin, setShowLogin] = useState(false);

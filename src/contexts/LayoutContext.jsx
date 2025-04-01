@@ -4,31 +4,48 @@ import routes from '../routes/routes';
 const LayoutContext = createContext();
 
 export function LayoutProvider({ children }) {
+
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         const savedState = localStorage.getItem('sidebarCollapsed');
         return savedState ? JSON.parse(savedState) : window.innerWidth < 768;
     });
 
-    // Estado para detectar dispositivos móveis
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-    // Estado para a busca na navbar
     const [searchQuery, setSearchQuery] = useState('');
+    const [breadcrumbs, setBreadcrumbs] = useState([{ title: 'Home', path: '/' }]);
 
-    // Estado para breadcrumbs
-    const [breadcrumbs, setBreadcrumbs] = useState([
-        { title: 'Home', path: '/' }
-    ]);
-
-    // Itens do menu principal - agora usando a configuração centralizada
     const menuItems = routes.filter(route => route.showInMenu);
 
-    // Detectar tamanho da tela para responsividade
+    useEffect(() => {
+        if (localStorage.getItem('flowbite-theme-mode') === 'dark' || (!('flowbite-theme-mode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    }
+        , []);
+
+    // Adiciona um listener para o evento de mudança de tema
+    useEffect(() => {
+        const handleThemeChange = (e) => {
+            if (e.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        };
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleThemeChange);
+
+        return () => {
+            window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', handleThemeChange);
+        };
+    }, []);
+
     useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
             setIsMobile(mobile);
-            // Em dispositivos móveis, colapsar a sidebar por padrão
             if (mobile && !sidebarCollapsed) {
                 setSidebarCollapsed(true);
             }
@@ -38,7 +55,6 @@ export function LayoutProvider({ children }) {
         return () => window.removeEventListener('resize', handleResize);
     }, [sidebarCollapsed]);
 
-    // Persistir o estado da sidebar no localStorage
     useEffect(() => {
         localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed));
     }, [sidebarCollapsed]);
@@ -47,50 +63,48 @@ export function LayoutProvider({ children }) {
         setSidebarCollapsed(prev => !prev);
     };
 
-    // Uso do useCallback para memorizar a função e evitar recriação a cada renderização
-    const updateBreadcrumbs = useCallback((path, title) => {
-        if (!path) return;
+    const updateBreadcrumbs = useCallback((baseBreadcrumb, pathname) => {
+        let pathToProcess = pathname;
+        const routeGroup = routes.find(group =>
+            group.routePrefix && pathname.startsWith(group.routePrefix)
+        );
 
-        const routeItem = routes.find(item => item.path === path);
-
-        let newBreadcrumbs;
-
-        // Verifica se já estamos na home para evitar duplicação
-        if (path === '/') {
-            newBreadcrumbs = [{ title: 'Home', path: '/' }];
+        // Atualizar o breadcrumb base com o título específico, se existir
+        if (routeGroup?.breadcrumbTitle && baseBreadcrumb.length > 0) {
+            baseBreadcrumb[0].title = routeGroup.breadcrumbTitle;
         }
-        else if (routeItem) {
-            newBreadcrumbs = [
-                { title: 'Home', path: '/' },
-                { title: routeItem.title, path: routeItem.path }
-            ];
-        }
-        else if (title) {
-            // Verifica se o path já existe no breadcrumb atual
-            const existingIndex = breadcrumbs.findIndex(item => item.path === path);
 
-            if (existingIndex >= 0) {
-                // Se já existe, atualizamos apenas o título se necessário
-                if (breadcrumbs[existingIndex].title !== title) {
-                    newBreadcrumbs = [...breadcrumbs];
-                    newBreadcrumbs[existingIndex] = { title, path };
-                } else {
-                    return;
-                }
-            } else {
-                // Se não existe, adicionamos ao final do breadcrumb
-                newBreadcrumbs = [...breadcrumbs, { title, path }];
+        if (routeGroup && routeGroup.routePrefix) {
+            pathToProcess = pathname.replace(routeGroup.routePrefix, '');
+            if (pathToProcess === '') {
+                setBreadcrumbs(baseBreadcrumb);
+                return;
             }
-        } else {
-            // Se não temos um título e não é um item de menu, não fazemos nada
-            return;
         }
 
-        // Só atualiza o estado se houver alteração nos breadcrumbs
-        if (JSON.stringify(newBreadcrumbs) !== JSON.stringify(breadcrumbs)) {
-            setBreadcrumbs(newBreadcrumbs);
-        }
-    }, [breadcrumbs]);
+        const pathParts = pathToProcess.split('/').filter(Boolean);
+        const newBreadcrumbs = pathParts.map((part, index) => {
+            const prefix = routeGroup?.routePrefix || '';
+            const relativePath = `/${pathParts.slice(0, index + 1).join('/')}`;
+            const fullPath = `${prefix}${relativePath}`;
+
+            let matchedRoute = null;
+            routes.forEach(group => {
+                const foundRoute = group.routes.find(r =>
+                    (prefix + '/' + r.path) === fullPath ||
+                    r.path === relativePath.substring(1)
+                );
+                if (foundRoute) matchedRoute = foundRoute;
+            });
+
+            return {
+                title: matchedRoute?.breadcrumbTitle || matchedRoute?.title || part,
+                path: fullPath
+            };
+        });
+
+        setBreadcrumbs([...baseBreadcrumb, ...newBreadcrumbs]);
+    }, []);
 
     return (
         <LayoutContext.Provider value={{

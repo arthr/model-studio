@@ -33,6 +33,7 @@ const uploadService = {
 			setTimeout(() => {
 				resolve({
 					success: true,
+					fileName: file.name,
 					fileUrl: URL.createObjectURL(file),
 				});
 			}, 1000);
